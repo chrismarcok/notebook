@@ -8,3 +8,4 @@ dependencies listed in package.json:
 * method-override
 * express-session
 * connect-flash
+* bcryptjs

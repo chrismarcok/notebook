@@ -19,6 +19,8 @@ const flash = require("connect-flash");
 //express-session for auth
 const session = require("express-session");
 
+const path = require("path");
+
 // connect to mongoose. its a promise, so we must catch it
 mongoose.connect('mongodb://localhost/notebook-dev', {
   useNewUrlParser: true
@@ -27,9 +29,9 @@ mongoose.connect('mongodb://localhost/notebook-dev', {
   .catch(err => console.log(err));
 
 
-//Load Note Model
-require('./models/Notes');
-const Note = mongoose.model('notes');
+//Load Routes
+const notes = require('./routes/notes');
+const users = require('./routes/users');
 
 const app = express();
 const port = 5000;
@@ -41,6 +43,9 @@ app.set('view engine', 'handlebars');
 // Body-parser middleware
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+
+// Static folder. set public folder to be the express static folder.
+app.use(express.static(path.join(__dirname, "public")));
 
 // methodOverride middleware
 app.use(methodOverride('_method'));
@@ -82,92 +87,11 @@ app.get('/about', (req, res) => {
   res.render("about");
 });
 
-//Idea index page
-app.get('/notes', (req, res) => {
-  //look for ALL notes in the db, sort them by date and render
-  Note.find({})
-    .sort({ date: 'desc' })
-    .then(notes => {
-      res.render("notes/index", {
-        notes: notes
-      });
-    });
-});
 
-//Add note form
-app.get('/notes/add', (request, response) => {
-  response.render("notes/add");
-});
 
-//Edit Note form
-app.get('/notes/edit/:id', (req, res) => {
-  Note.findOne({
-    _id: req.params.id
-  })
-    .then(note => {
-      res.render("notes/edit", {
-        note: note
-      });
-    });
-
-});
-
-//Process Form
-app.post("/notes", (req, res) => {
-  let errors = [];
-  if (!req.body.title) {
-    errors.push({ text: 'A Title Is Required.' });
-  }
-  if (!req.body.details) {
-    errors.push({ text: 'Alan Please Add Details.' });
-  }
-  if (errors.length > 0) {
-    res.render('notes/add', {
-      //pass to notes/add the errors, the title, and the details that were given.
-      errors: errors,
-      title: req.body.title,
-      details: req.body.details
-    });
-  } else {
-    const newUser = {
-      title: req.body.title,
-      details: req.body.details
-    };
-    new Note(newUser)
-      .save()
-      .then(note => {
-        req.flash("success_msg", "Note Created");
-        res.redirect('/notes');
-      });
-  }
-});
-
-// Edit form process
-app.put('/notes/:id', (req, res) => {
-  // Find one entry with _id = id, then take that note and put in new title and details.
-  Note.findOne({
-    _id: req.params.id
-  })
-    .then(note => {
-      // Using the new values
-      note.title = req.body.title,
-        note.details = req.body.details
-      note.save()
-        .then(note => {
-          req.flash("success_msg", "Note Edited");
-          res.redirect('/notes');
-        })
-    });
-});
-
-//Deleting notes
-app.delete('/ideas/:id', (req, res) => {
-  Note.remove({ _id: req.params.id })
-    .then(() => {
-      req.flash("success_msg", "Note Removed");
-      res.redirect('/notes');
-    })
-});
+// Use our routes
+app.use('/notes', notes);
+app.use('/users', users);
 
 app.listen(port, () => {
   console.log(`Server started on port ${port}`);
