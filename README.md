@@ -9,3 +9,5 @@ dependencies listed in package.json:
 * express-session
 * connect-flash
 * bcryptjs
+* passport
+* passport-local

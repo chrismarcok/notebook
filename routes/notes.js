@@ -2,14 +2,17 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 
+//Load Helper
+const {ensureAuthenticated} = require("../helpers/auth");
+
 //Load Note Model
 require('../models/Notes');
 const Note = mongoose.model('notes');
 
 //Notes index page
-router.get('/', (req, res) => {
+router.get('/', ensureAuthenticated, (req, res) => {
   //look for ALL notes in the db, sort them by date and render
-  Note.find({})
+  Note.find({user: req.user.id})
     .sort({ date: 'desc' })
     .then(notes => {
       res.render("notes/index", {
@@ -19,25 +22,31 @@ router.get('/', (req, res) => {
 });
 
 //Add note form
-router.get('/add', (req, res) => {
+router.get('/add', ensureAuthenticated, (req, res) => {
   res.render("notes/add");
 });
 
 //Edit Note form
-router.get('/edit/:id', (req, res) => {
+router.get('/edit/:id', ensureAuthenticated, (req, res) => {
   Note.findOne({
     _id: req.params.id
   })
     .then(note => {
-      res.render("notes/edit", {
-        note: note
-      });
+      if (note.user != req.user.id){
+        req.flash("error_msg", 'Not Authorized.')
+        res.redirect("/notes");
+      } else {
+        res.render("notes/edit", {
+          note: note
+        });
+      }
+      
     });
 
 });
 
 //Process Form
-router.post("/", (req, res) => {
+router.post("/", ensureAuthenticated, (req, res) => {
   let errors = [];
   if (!req.body.title) {
     errors.push({ text: 'A Title Is Required.' });
@@ -55,7 +64,8 @@ router.post("/", (req, res) => {
   } else {
     const newUser = {
       title: req.body.title,
-      details: req.body.details
+      details: req.body.details,
+      user: req.user.id
     };
     new Note(newUser)
       .save()
@@ -67,7 +77,7 @@ router.post("/", (req, res) => {
 });
 
 // Edit form process
-router.put('/:id', (req, res) => {
+router.put('/:id', ensureAuthenticated, (req, res) => {
   // Find one entry with _id = id, then take that note and put in new title and details.
   Note.findOne({
     _id: req.params.id
@@ -85,7 +95,7 @@ router.put('/:id', (req, res) => {
 });
 
 //Deleting notes
-router.delete('/:id', (req, res) => {
+router.delete('/:id', ensureAuthenticated, (req, res) => {
   Note.remove({ _id: req.params.id })
     .then(() => {
       req.flash("success_msg", "Note Removed");

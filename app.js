@@ -19,6 +19,9 @@ const flash = require("connect-flash");
 //express-session for auth
 const session = require("express-session");
 
+//passport for auth
+const passport = require("passport");
+
 const path = require("path");
 
 // connect to mongoose. its a promise, so we must catch it
@@ -32,6 +35,10 @@ mongoose.connect('mongodb://localhost/notebook-dev', {
 //Load Routes
 const notes = require('./routes/notes');
 const users = require('./routes/users');
+
+//passport config
+const passportJS = require('./config/passport');
+passportJS(passport);
 
 const app = express();
 const port = 5000;
@@ -57,6 +64,10 @@ app.use(session({
   saveUninitialized: true
 }));
 
+//passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
+
 // Flash middleware
 app.use(flash());
 
@@ -65,6 +76,7 @@ app.use(function(req, res, next){
   res.locals.success_msg = req.flash('success_msg');
   res.locals.error_msg = req.flash('error_msg');
   res.locals.error = req.flash('error');
+  res.locals.user = req.user || null;
   next();
 });
 
