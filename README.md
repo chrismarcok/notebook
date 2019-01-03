@@ -5,3 +5,6 @@ dependencies listed in package.json:
 * express-handlebars
 * mongoose
 * body-parser
+* method-override
+* express-session
+* connect-flash

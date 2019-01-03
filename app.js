@@ -1,5 +1,4 @@
 // Our app is an express app, bring in express with this.
-// We use nodemon to constantly update our server whenever we make changes
 const express = require('express');
 
 //Handlebars is used to create our HTML
@@ -10,6 +9,15 @@ const mongoose = require("mongoose");
 
 //Body-parser to parse the information from forms
 const bodyParser = require("body-parser");
+
+//Method-override for making put requests (updating DB)
+const methodOverride = require('method-override');
+
+// Connect-flash for flash messages
+const flash = require("connect-flash");
+
+//express-session for auth
+const session = require("express-session");
 
 // connect to mongoose. its a promise, so we must catch it
 mongoose.connect('mongodb://localhost/notebook-dev', {
@@ -34,6 +42,27 @@ app.set('view engine', 'handlebars');
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+// methodOverride middleware
+app.use(methodOverride('_method'));
+
+// Express session middleware
+app.use(session({
+  secret: 'secret',
+  resave: true,
+  saveUninitialized: true
+}));
+
+// Flash middleware
+app.use(flash());
+
+// Global Variables
+app.use(function(req, res, next){
+  res.locals.success_msg = req.flash('success_msg');
+  res.locals.error_msg = req.flash('error_msg');
+  res.locals.error = req.flash('error');
+  next();
+});
+
 
 // Middleware functions are functions that have access to the request and response objects, and the next middleware function in the application requiest response cycle.
 
@@ -55,20 +84,32 @@ app.get('/about', (req, res) => {
 
 //Idea index page
 app.get('/notes', (req, res) => {
-  //look for all notes in the db, sort them by date and render
+  //look for ALL notes in the db, sort them by date and render
   Note.find({})
-  .sort({date:'desc'})
-  .then( ideas => {
-    res.render("notes/index", {
-      ideas:ideas
+    .sort({ date: 'desc' })
+    .then(notes => {
+      res.render("notes/index", {
+        notes: notes
+      });
     });
-  });
-  
 });
 
 //Add note form
 app.get('/notes/add', (request, response) => {
   response.render("notes/add");
+});
+
+//Edit Note form
+app.get('/notes/edit/:id', (req, res) => {
+  Note.findOne({
+    _id: req.params.id
+  })
+    .then(note => {
+      res.render("notes/edit", {
+        note: note
+      });
+    });
+
 });
 
 //Process Form
@@ -95,9 +136,37 @@ app.post("/notes", (req, res) => {
     new Note(newUser)
       .save()
       .then(note => {
+        req.flash("success_msg", "Note Created");
         res.redirect('/notes');
       });
   }
+});
+
+// Edit form process
+app.put('/notes/:id', (req, res) => {
+  // Find one entry with _id = id, then take that note and put in new title and details.
+  Note.findOne({
+    _id: req.params.id
+  })
+    .then(note => {
+      // Using the new values
+      note.title = req.body.title,
+        note.details = req.body.details
+      note.save()
+        .then(note => {
+          req.flash("success_msg", "Note Edited");
+          res.redirect('/notes');
+        })
+    });
+});
+
+//Deleting notes
+app.delete('/ideas/:id', (req, res) => {
+  Note.remove({ _id: req.params.id })
+    .then(() => {
+      req.flash("success_msg", "Note Removed");
+      res.redirect('/notes');
+    })
 });
 
 app.listen(port, () => {
